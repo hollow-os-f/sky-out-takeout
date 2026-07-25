@@ -1,19 +1,21 @@
 package com.sky.controller.admin;
 
 import com.sky.constant.JwtClaimsConstant;
+import com.sky.dto.EmployeeDTO;
 import com.sky.dto.EmployeeLoginDTO;
+import com.sky.dto.EmployeePageQueryDTO;
 import com.sky.entity.Employee;
 import com.sky.properties.JwtProperties;
+import com.sky.result.PageResult;
 import com.sky.result.Result;
 import com.sky.service.EmployeeService;
 import com.sky.utils.JwtUtil;
 import com.sky.vo.EmployeeLoginVO;
+import io.swagger.annotations.Api;
+import io.swagger.annotations.ApiOperation;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -24,6 +26,7 @@ import java.util.Map;
 @RestController
 @RequestMapping("/admin/employee")
 @Slf4j
+@Api(tags = "员工相关注解")
 public class EmployeeController {
 
     @Autowired
@@ -38,6 +41,7 @@ public class EmployeeController {
      * @return
      */
     @PostMapping("/login")
+    @ApiOperation("员工登录")
     public Result<EmployeeLoginVO> login(@RequestBody EmployeeLoginDTO employeeLoginDTO) {
         log.info("员工登录：{}", employeeLoginDTO);
 
@@ -67,8 +71,64 @@ public class EmployeeController {
      * @return
      */
     @PostMapping("/logout")
+    @ApiOperation(value = "员工登出")
     public Result<String> logout() {
         return Result.success();
     }
+    /**
+     * 新增用户
+     * @return
+     */
+    @PostMapping
+    @ApiOperation(value = "新增用户")
+    public Result<?> save(@RequestBody EmployeeDTO employeeDTO){
+        log.info("新增用户");
+        employeeService.save(employeeDTO);
+        return Result.success();
+    }
+
+    /**
+     * 分页查询
+     * @param employeePageQueryDTO
+     * @return
+     */
+    @GetMapping("/page")
+    @ApiOperation("员工分页查询")
+    public Result<PageResult> pageQuery(EmployeePageQueryDTO employeePageQueryDTO){
+        log.info("员工分页查询：{}",employeePageQueryDTO);
+        PageResult m= employeeService.pageQuery(employeePageQueryDTO);
+        return Result.success(m);
+    }
+
+    /**
+     * 设置员工的状态
+     * @param id
+     * @param status
+     * @return
+     */
+    @PostMapping("/status/{status}")
+    @ApiOperation("改员工的状态")
+    public Result startOrStop(Long id,@PathVariable Integer status){
+        log.info("我要开始改入的状态了");
+        employeeService.startOrStop(id,status);
+        return Result.success();
+    }
+
+    @GetMapping("/{id}")
+    @ApiOperation("查询员工消息")
+    public Result<Employee> getById(@PathVariable Long id){
+        log.info("我要开查了");
+        return Result.success(employeeService.getById(id));
+    }
+
+    @PutMapping
+    @ApiOperation("修改员工信息")
+    public Result update(@RequestBody EmployeeDTO employeeDTO){
+        log.info("我要修改了");
+        employeeService.update(employeeDTO);
+        return Result.success();
+
+    }
+
 
 }
