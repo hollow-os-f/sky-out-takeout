@@ -21,6 +21,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.ArrayList;
 import java.util.List;
 
 @Slf4j
@@ -79,7 +80,7 @@ public class DishServiceImpl implements DishService {
     public void deleteBatch(List<Long> ids) {
         for(Long id:ids){
              Dish dish= dishMapper.getById(id);
-            if(dish.getStatus()== StatusConstant.ENABLE){
+            if(dish.getStatus().equals(StatusConstant.ENABLE)){
                 throw new DeletionNotAllowedException(MessageConstant.DISH_ON_SALE);
             }
         }
@@ -137,5 +138,30 @@ public class DishServiceImpl implements DishService {
         List<Dish> dishes= dishMapper.getDishByCategoryId(categoryId);
 
         return dishes;
+    }
+
+    @Override
+    public List<DishVO> listWithFlavor(Dish dish) {
+        List<Dish> dishes=dishMapper.list(dish);
+
+        List<DishVO> dishVOS=new ArrayList<>();
+
+        for (Dish d:dishes){
+            DishVO dish1= new DishVO();
+            BeanUtils.copyProperties(d,dish1);
+
+            List<DishFlavor>dishFlavors=dishFlavourMapper.getFlavorsByDishId(d.getId());
+
+            dish1.setFlavors(dishFlavors);
+            dishVOS.add(dish1);
+        }
+        return dishVOS;
+    }
+
+    @Override
+    public void updateStatus(Integer status,Long id) {
+        Dish dish=dishMapper.getById(id);
+        dish.setStatus(status);
+        dishMapper.update(dish);
     }
 }
