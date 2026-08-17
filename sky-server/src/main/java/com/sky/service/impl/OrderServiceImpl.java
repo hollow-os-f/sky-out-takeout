@@ -1,5 +1,6 @@
 package com.sky.service.impl;
 
+import com.alibaba.fastjson.JSON;
 import com.github.pagehelper.Page;
 import com.github.pagehelper.PageHelper;
 import com.sky.constant.MessageConstant;
@@ -17,6 +18,7 @@ import com.sky.vo.OrderPaymentVO;
 import com.sky.vo.OrderStatisticsVO;
 import com.sky.vo.OrderSubmitVO;
 import com.sky.vo.OrderVO;
+import com.sky.websocket.WebSocketServer;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -25,7 +27,9 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 @Service
@@ -47,7 +51,12 @@ public class OrderServiceImpl implements OrderService {
     private UserMapper userMapper;
 
     @Autowired
+    private WebSocketServer webSocketServer;
+
+    @Autowired
     private WeChatPayUtil weChatPayUtil;
+
+
 
     @Override
     @Transactional
@@ -75,6 +84,7 @@ public class OrderServiceImpl implements OrderService {
         orders.setPhone(addressBook.getPhone());
         orders.setConsignee(addressBook.getConsignee());
         orders.setUserId(userId);
+        orders.setAddress(addressBook.getProvinceName()+addressBook.getCityName()+addressBook.getDistrictName()+addressBook.getDetail());
 
         orderMapper.insert(orders);
         //向order_detail插入n个数据
@@ -152,6 +162,16 @@ public class OrderServiceImpl implements OrderService {
                 .build();
 
         orderMapper.update(orders);
+
+        Map map=new HashMap();
+        map.put("type",1);//1是来单提醒，2是客户催单
+        map.put("orderId",ordersDB.getId());
+        map.put("content","订单号:"+outTradeNo);
+
+        String json= JSON.toJSONString(map);
+
+        webSocketServer.sendToAllClient(json);
+
     }
 
     @Override
@@ -266,7 +286,8 @@ public class OrderServiceImpl implements OrderService {
     @Override
     public void delivery(Long id) {
         Orders orders=orderMapper.getById(id);
-        if (orders!=null||orders.getStatus().equals(Orders.CONFIRMED)){
+        log.info("{}",orders.getStatus());
+        if (orders!=null&&!orders.getStatus().equals(Orders.CONFIRMED)){
             throw new OrderBusinessException(MessageConstant.ORDER_STATUS_ERROR);
         }
         Orders orders1=new Orders();
@@ -279,13 +300,48 @@ public class OrderServiceImpl implements OrderService {
     @Override
     public void complete(Long id) {
         Orders orders=orderMapper.getById(id);
-        if(orders==null||!orders.getStatus().equals(Orders.DELIVERY_IN_PROGRESS)){
+        if(orders==null&&!orders.getStatus().equals(Orders.DELIVERY_IN_PROGRESS)){
             throw new OrderBusinessException(MessageConstant.ORDER_STATUS_ERROR);
         }
         Orders orders1=new Orders();
         orders1.setId(id);
         orders1.setStatus(Orders.COMPLETED);
         orderMapper.update(orders1);
+
+    }
+
+    @Override
+    public void repetition(Long id) {
+        Long userId=BaseContext.getCurrentId();
+
+        List<OrderDetail> orderDetails=orderDetailMapper.getByOrderId(id);
+
+        List<ShoppingCart> shoppingCarts=orderDetails.stream().map(x->{
+            ShoppingCart shoppingCart=new ShoppingCart();
+            BeanUtils.copyProperties(x,shoppingCart,"id");
+            shoppingCart.setUserId(userId);
+            shoppingCart.setCreateTime(LocalDateTime.now());
+            return shoppingCart;
+        }).collect(Collectors.toList());
+
+        shoppingCartMapper.insertBatch(shoppingCarts);
+
+    }
+
+    @Override
+    public void reminder(Long id) {
+        Orders orders=orderMapper.getById(id);
+        if(orders==null){
+            throw new OrderBusinessException(MessageConstant.ORDER_NOT_FOUND);
+        }
+
+        Map map =new HashMap<>();
+        map.put("type",2);
+        map.put("orderId",id);
+        map.put("content","订单号"+orders.getNumber());
+
+        String json=JSON.toJSONString(map);
+        webSocketServer.sendToAllClient(json);
 
     }
 

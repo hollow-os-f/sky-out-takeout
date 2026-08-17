@@ -65,4 +65,19 @@ public class OrderController {
         orderService.cancelOrder(ordersCancelDTO);
         return Result.success();
     }
+
+    @PostMapping("/repetition/{id}")
+    @ApiOperation(value = "再来一单")
+    public Result repetition(@PathVariable Long id){
+        log.info("用户再来一单");
+        orderService.repetition(id);
+        return Result.success();
+    }
+    @GetMapping("/reminder/{id}")
+    @ApiOperation("客户催单")
+    public Result reminder(@PathVariable Long id){
+        log.info("客户催单");
+        orderService.reminder(id);
+        return Result.success();
+    }
 }
