@@ -199,7 +199,7 @@ public class OrderServiceImpl implements OrderService {
         orders1.setStatus(Orders.CANCELLED);
         orders1.setCancelReason(ordersCancelDTO.getCancelReason());
         orders1.setCancelTime(LocalDateTime.now());
-        orderMapper.update(orders);
+        orderMapper.update(orders1);
 
     }
 
@@ -268,10 +268,10 @@ public class OrderServiceImpl implements OrderService {
         Orders orders=orderMapper.getById(ordersRejectionDTO.getId());
         Integer status=orders.getStatus();
 
-        if (orders == null || !orders.getStatus().equals(Orders.TO_BE_CONFIRMED)) {
+        if (orders == null || status.equals(Orders.TO_BE_CONFIRMED)) {
             throw new OrderBusinessException(MessageConstant.ORDER_STATUS_ERROR);
         }
-        if(status==Orders.PAID){
+        if(orders.getPayStatus()==Orders.PAID){
             log.info("退款");
         }
 
@@ -300,12 +300,14 @@ public class OrderServiceImpl implements OrderService {
     @Override
     public void complete(Long id) {
         Orders orders=orderMapper.getById(id);
-        if(orders==null&&!orders.getStatus().equals(Orders.DELIVERY_IN_PROGRESS)){
+        if(orders==null||!orders.getStatus().equals(Orders.DELIVERY_IN_PROGRESS)){
             throw new OrderBusinessException(MessageConstant.ORDER_STATUS_ERROR);
         }
         Orders orders1=new Orders();
         orders1.setId(id);
         orders1.setStatus(Orders.COMPLETED);
+        orders1.setDeliveryTime(LocalDateTime.now());
+
         orderMapper.update(orders1);
 
     }
